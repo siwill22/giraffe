@@ -1,4 +1,4 @@
-# paleoviews
+# giraffe
 
 Experiments with creating a high-level, interactive viewing interface for some geoscience data, using existing python tools (mainly geoviews).
 
