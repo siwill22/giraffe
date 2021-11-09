@@ -1,5 +1,9 @@
 import pygplates
 from gprm.utils.create_gpml import gpml2gdf
+import numpy as np
+import geoviews as gv
+from cartopy import crs as ccrs
+
 
 
 def wrap_reconstructed_features(reconstructed_features, central_longitude = 0., tesselation_degrees = 1.):
@@ -57,3 +61,61 @@ def wrap_features(features, central_longitude = 0., tesselation_degrees = 1.):
     return gpml2gdf(wrapped_features)
 
 
+def polygon_view(reconstruction_model, reconstruction_time, polygon_type='continents', 
+                 anchor_plate_id=0,
+                 dim=400, projection=ccrs.Robinson(),
+                 vdims=['NAME', 'PLATEID1', 'FROMAGE']):
+    
+    snapshot = reconstruction_model.polygon_snapshot(polygon_type, reconstruction_time, anchor_plate_id=anchor_plate_id)
+    
+    return gv.Polygons(wrap_reconstructed_features(snapshot.reconstructed_polygons), 
+                       vdims=vdims).opts(tools=['hover'], 
+                                         height=dim, 
+                                         width=int(dim*1.9), 
+                                         projection=projection, 
+                                         color_index='FROMAGE',
+                                         cmap='inferno_r'
+                                        )
+    
+    
+def topology_view(reconstruction_model, reconstruction_time, 
+                  anchor_plate_id=0,
+                  dim=400, projection=ccrs.Robinson()):
+    
+    plates = reconstruction_model.plate_snapshot(reconstruction_time, anchor_plate_id=anchor_plate_id)
+    features = [resolved_topology.get_resolved_feature() for resolved_topology in plates.resolved_topologies]
+
+    return gv.Polygons(wrap_features(features), 
+                       vdims=['NAME', 'PLATEID1']).opts(height=dim, 
+                                                        width=int(dim*1.9), 
+                                                        projection=projection, 
+                                                        fill_color='red'
+                                                       )
+    
+    
+def velocity_view(reconstruction_model, reconstruction_time, 
+                  anchor_plate_id=0,
+                  dim=400, projection=ccrs.Robinson()):
+    
+    plates = reconstruction_model.plate_snapshot(reconstruction_time, anchor_plate_id=anchor_plate_id)
+    velocities = plates.velocity_field()
+    
+    azimuths = np.radians(90.-np.degrees(+np.array(velocities.velocity_azimuth)))
+    magnitudes = np.array(velocities.velocity_magnitude)
+
+    vectorfield = gv.VectorField((velocities.longitude, 
+                                  velocities.latitude, 
+                                  azimuths,
+                                  magnitudes*0.04))
+
+    return vectorfield.opts(magnitude='Magnitude', 
+                            color='Magnitude', 
+                            cmap='fire', 
+                            height=dim, 
+                            width=int(dim*1.9),
+                            projection=projection, 
+                            global_extent=True, 
+                            normalize_lengths=False)
+    
+    
+    
